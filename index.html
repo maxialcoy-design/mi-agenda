@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#6d5dfc">
+  <meta name="description" content="Mi Agenda: tareas, citas y calendario.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>Mi Agenda</title>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">MI AGENDA</div>
+      <h1 id="pageTitle">Hoy</h1>
+    </div>
+    <button class="icon-btn" id="notifyBtn" title="Activar notificaciones">🔔</button>
+  </header>
+
+  <main id="app" class="content"></main>
+
+  <button class="fab" id="addBtn" aria-label="Añadir">＋</button>
+
+  <nav class="bottom-nav">
+    <button data-view="today" class="active"><span>🏠</span>Hoy</button>
+    <button data-view="calendar"><span>📅</span>Calendario</button>
+    <button data-view="tasks"><span>✅</span>Agenda</button>
+    </nav>
+
+  <dialog id="addDialog">
+    <div class="dialog-card">
+      <div class="dialog-head"><h2>Añadir</h2><button class="close" onclick="addDialog.close()">×</button></div>
+      <div class="choice-grid">
+        <button class="choice" onclick="openTaskForm()">✅<b>Tarea</b><small>Algo que hacer</small></button>
+        <button class="choice" onclick="openEventForm()">📅<b>Cita</b><small>Fecha y hora</small></button>
+        <button class="choice" onclick="enableDailyNotifications()">🔔<b>Avisos diarios</b><small>Recordatorio de lo que tienes hoy</small></button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="formDialog">
+    <div class="dialog-card">
+      <div class="dialog-head"><h2 id="formTitle">Nueva tarea</h2><button class="close" onclick="formDialog.close()">×</button></div>
+      <form id="itemForm">
+        <input type="hidden" id="itemType">
+        <label>Título<input id="title" required maxlength="100" placeholder="¿Qué necesitas hacer?"></label>
+        <div class="two">
+          <label>Fecha<input id="date" type="date" required></label>
+          <label id="timeWrap">Hora<input id="time" type="time"></label>
+        </div>
+        <label id="allDayWrap" class="check"><input id="allDay" type="checkbox"> Todo el día</label>
+        <label id="endWrap">Hora de fin<input id="endTime" type="time"></label>
+        <label id="repeatWrap">Repetir
+          <select id="repeat">
+            <option value="none">No repetir</option>
+            <option value="daily">Cada día</option>
+            <option value="weekly">Cada semana</option>
+            <option value="monthly">Cada mes</option>
+          </select>
+        </label>
+        <label>Notas<textarea id="notes" rows="3" placeholder="Opcional"></textarea></label>
+        <label class="check"><input id="reminder" type="checkbox"> Avisarme con una notificación</label>
+        <button class="primary" type="submit">Guardar</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -436,7 +436,7 @@ function playKatanaSound(){
     if(!katanaAudio){
       katanaAudio=new Audio('katana.mp3');
       katanaAudio.preload='auto';
-      katanaAudio.volume=0.22;
+      katanaAudio.volume=0.08;
     }
     katanaAudio.currentTime=0;
     const promise=katanaAudio.play();

@@ -53,39 +53,24 @@
 .time-cancel{background:#3b4237;color:#dfe4d8}
 .time-confirm{background:#65783b;color:#fff}
 
-/* Katana: corte visible de izquierda a derecha */
-.katana-cut .item-title{text-decoration:line-through;text-decoration-thickness:2px}
-.katana-blade{
-  position:absolute;top:8%;left:-22%;
-  width:125px;height:5px;border-radius:999px;
-  background:linear-gradient(90deg,transparent 0%,#fff 12%,#f5f5f5 72%,transparent 100%);
-  transform:rotate(-16deg);
-  animation:katanaSlash .56s cubic-bezier(.15,.8,.2,1) forwards;
-  pointer-events:none;z-index:20;
-  box-shadow:0 0 7px #fff,0 0 16px #dce8d0;
-}
-.katana-blade:after{
-  content:"";position:absolute;right:3px;top:-5px;width:13px;height:15px;
-  border-radius:2px;background:#6f5238;transform:rotate(16deg);
-}
-@keyframes katanaSlash{
-  0%{left:-28%;opacity:0}
-  10%{opacity:1}
-  100%{left:110%;opacity:0}
-}
 
 
-/* Katana strike: the blade crosses the task text itself. */
-.katana-cut{position:relative;overflow:hidden}
+/* Katana: pasa exactamente por la línea del título de la tarea */
+.card{position:relative}
+.katana-cut{overflow:hidden}
+.katana-cut .item-title{
+  text-decoration:line-through;
+  text-decoration-thickness:2px;
+}
 .katana-blade{
   position:absolute;
-  top:44%;
+  top:34%;
   left:-45%;
   width:145%;
   height:5px;
   border-radius:999px;
-  background:linear-gradient(90deg,transparent 0%,#dfe8d8 5%,#ffffff 18%,#ffffff 82%,#dfe8d8 95%,transparent 100%);
-  transform:rotate(-9deg);
+  background:linear-gradient(90deg,transparent 0%,#dfe8d8 5%,#fff 18%,#fff 82%,#dfe8d8 95%,transparent 100%);
+  transform:translateY(-50%) rotate(-9deg);
   animation:katanaSlash .56s cubic-bezier(.18,.78,.2,1) forwards;
   pointer-events:none;
   z-index:50;

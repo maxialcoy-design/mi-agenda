@@ -450,30 +450,39 @@ function playCompletionShot(id){
   if(!card) return;
 
   card.classList.add('completion-shot');
-  const shot=document.createElement('div');
-  shot.className='shot-effect';
-  shot.innerHTML='<span class="shot-projectile"></span><span class="shot-impact"></span>';
-  card.appendChild(shot);
+  const impact=document.createElement('div');
+  impact.className='shot-impact-only';
+  impact.innerHTML='<span></span><i></i><b></b><em></em>';
+  card.appendChild(impact);
 
   const rect=card.getBoundingClientRect();
   const target=btn.getBoundingClientRect();
-  const targetY=(target.top-rect.top)+(target.height/2);
-  shot.style.setProperty('--shot-y',`${targetY}px`);
-  shot.style.setProperty('--shot-target-x',`${(target.left-rect.left)+(target.width/2)}px`);
+  const y=(target.top-rect.top)+(target.height/2);
+  const x=(target.left-rect.left)+(target.width/2);
+  impact.style.left=`${x}px`;
+  impact.style.top=`${y}px`;
 
-  setTimeout(()=>shot.remove(),520);
-  setTimeout(()=>card.classList.remove('completion-shot'),650);
+  setTimeout(()=>impact.remove(),520);
+  setTimeout(()=>card.classList.remove('completion-shot'),560);
 }
 
 function playDeleteKatanaAnimation(card){
   if(!card) return;
   card.classList.add('katana-delete');
   const blade=document.createElement('div');
-  blade.className='katana-blade katana-delete-blade';
-  blade.innerHTML='<span></span>';
+  blade.className='katana-delete-blade';
+  blade.innerHTML='<span class="katana-handle"></span>';
   card.appendChild(blade);
+
   playKatanaSound();
-  setTimeout(()=>blade.remove(),620);
+
+  // The blade crosses the exact middle line of the task row.
+  requestAnimationFrame(()=>{
+    blade.style.setProperty('--cut-y', `${card.querySelector('.item')?.offsetHeight/2 || 34}px`);
+  });
+
+  setTimeout(()=>card.classList.add('katana-cut-done'),430);
+  setTimeout(()=>blade.remove(),760);
 }
 
 function toggleItem(id){
@@ -490,29 +499,58 @@ function toggleItem(id){
   setTimeout(()=>render(),680);
 }
 
+let undoDeleteTimer=null;
+let undoDeleteItem=null;
+
+function showUndoDelete(item){
+  const old=document.getElementById('undoDeleteBar');
+  if(old) old.remove();
+  const bar=document.createElement('div');
+  bar.id='undoDeleteBar';
+  bar.className='undo-delete-bar';
+  bar.innerHTML=`<span>Tarea eliminada</span><button type="button" onclick="undoDelete()">Deshacer</button>`;
+  document.body.appendChild(bar);
+  undoDeleteItem=item;
+  clearTimeout(undoDeleteTimer);
+  undoDeleteTimer=setTimeout(()=>{
+    undoDeleteItem=null;
+    bar.classList.add('hide');
+    setTimeout(()=>bar.remove(),220);
+  },5000);
+}
+
+function undoDelete(){
+  if(!undoDeleteItem) return;
+  const restored={...undoDeleteItem};
+  if(!items.some(i=>i.id===restored.id)){
+    items.push(restored);
+    items.sort((a,b)=>(a.date||'').localeCompare(b.date||'') || (a.time||'99:99').localeCompare(b.time||'99:99'));
+    localStorage.setItem(KEY,JSON.stringify(items));
+    render();
+    scheduleRemoteReminder(restored);
+  }
+  undoDeleteItem=null;
+  clearTimeout(undoDeleteTimer);
+  const bar=document.getElementById('undoDeleteBar');
+  if(bar){bar.classList.add('hide');setTimeout(()=>bar.remove(),220);}
+}
+
 function deleteItem(id){
   const x=items.find(i=>i.id===id);
   if(!x) return;
-  if(!confirm(`¿Eliminar "${x.title||'este elemento'}"? Esta acción quitará la tarea de tu agenda.`)) return;
-
+  const snapshot={...x};
   const btn=document.querySelector(`button[onclick="deleteItem('${id}')"]`);
   const card=btn?.closest('.card');
 
-  if(!card){
-    deleteRemoteReminder(id);
-    items=items.filter(item=>item.id!==id);
-    save();
-    return;
-  }
+  deleteRemoteReminder(id);
+  items=items.filter(item=>item.id!==id);
+  localStorage.setItem(KEY,JSON.stringify(items));
 
-  card.classList.add('deleting-task');
-  playDeleteKatanaAnimation(card);
+  if(card) playDeleteKatanaAnimation(card);
+  else render();
 
-  setTimeout(()=>{
-    deleteRemoteReminder(id);
-    items=items.filter(item=>item.id!==id);
-    save();
-  },760);
+  setTimeout(()=>render(),760);
+  showUndoDelete(snapshot);
 }
 
 function saveDailyTime(value){localStorage.setItem('dailyTime',value)}

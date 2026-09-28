@@ -443,19 +443,39 @@ function playKatanaSound(){
     if(promise&&promise.catch) promise.catch(()=>{});
   }catch(e){}
 }
-function playKatanaAnimation(id){
+
+function playCompletionShot(id){
   const btn=document.querySelector(`button[onclick="toggleItem('${id}')"]`);
   const card=btn?.closest('.card');
   if(!card) return;
-  card.classList.add('katana-cut');
+
+  card.classList.add('completion-shot');
+  const shot=document.createElement('div');
+  shot.className='shot-effect';
+  shot.innerHTML='<span class="shot-projectile"></span><span class="shot-impact"></span>';
+  card.appendChild(shot);
+
+  const rect=card.getBoundingClientRect();
+  const target=btn.getBoundingClientRect();
+  const targetY=(target.top-rect.top)+(target.height/2);
+  shot.style.setProperty('--shot-y',`${targetY}px`);
+  shot.style.setProperty('--shot-target-x',`${(target.left-rect.left)+(target.width/2)}px`);
+
+  setTimeout(()=>shot.remove(),520);
+  setTimeout(()=>card.classList.remove('completion-shot'),650);
+}
+
+function playDeleteKatanaAnimation(card){
+  if(!card) return;
+  card.classList.add('katana-delete');
   const blade=document.createElement('div');
-  blade.className='katana-blade';
+  blade.className='katana-blade katana-delete-blade';
   blade.innerHTML='<span></span>';
   card.appendChild(blade);
   playKatanaSound();
-  setTimeout(()=>blade.remove(),560);
-  setTimeout(()=>card.classList.remove('katana-cut'),700);
+  setTimeout(()=>blade.remove(),620);
 }
+
 function toggleItem(id){
   const x=items.find(i=>i.id===id);
   if(!x) return;
@@ -466,15 +486,33 @@ function toggleItem(id){
   }
   x.done=true;
   localStorage.setItem(KEY,JSON.stringify(items));
-  playKatanaAnimation(id);
-  setTimeout(()=>render(),720);
+  playCompletionShot(id);
+  setTimeout(()=>render(),680);
 }
+
 function deleteItem(id){
   const x=items.find(i=>i.id===id);
-  if(confirm(`¿Eliminar "${x?.title||'este elemento'}"? Esta acción quitará la tarea de tu agenda.`)){
+  if(!x) return;
+  if(!confirm(`¿Eliminar "${x.title||'este elemento'}"? Esta acción quitará la tarea de tu agenda.`)) return;
+
+  const btn=document.querySelector(`button[onclick="deleteItem('${id}')"]`);
+  const card=btn?.closest('.card');
+
+  if(!card){
     deleteRemoteReminder(id);
-    items=items.filter(x=>x.id!==id);save()
+    items=items.filter(item=>item.id!==id);
+    save();
+    return;
   }
+
+  card.classList.add('deleting-task');
+  playDeleteKatanaAnimation(card);
+
+  setTimeout(()=>{
+    deleteRemoteReminder(id);
+    items=items.filter(item=>item.id!==id);
+    save();
+  },760);
 }
 
 function saveDailyTime(value){localStorage.setItem('dailyTime',value)}

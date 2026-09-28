@@ -92,3 +92,102 @@
   8%{opacity:1}
   100%{left:105%;opacity:0}
 }
+
+
+/* Versión 1.0.6 — completar: disparo al tick */
+.completion-shot{
+  overflow:hidden;
+}
+.shot-effect{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:60;
+}
+.shot-projectile{
+  position:absolute;
+  left:-28px;
+  top:var(--shot-y);
+  width:13px;
+  height:5px;
+  border-radius:999px;
+  background:linear-gradient(90deg,transparent,#fff 35%,#d9ff9a);
+  box-shadow:0 0 6px #fff,0 0 13px rgba(190,255,120,.9);
+  transform:translateY(-50%);
+  animation:shotToTick .38s cubic-bezier(.2,.8,.2,1) forwards;
+}
+.shot-projectile:before{
+  content:"";
+  position:absolute;
+  right:100%;
+  top:50%;
+  width:70px;
+  height:2px;
+  transform:translateY(-50%);
+  background:linear-gradient(90deg,transparent,rgba(210,255,150,.55));
+}
+.shot-impact{
+  position:absolute;
+  left:var(--shot-target-x);
+  top:var(--shot-y);
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  border:2px solid rgba(230,255,190,.95);
+  transform:translate(-50%,-50%) scale(.2);
+  opacity:0;
+  box-shadow:0 0 12px rgba(210,255,140,.95);
+  animation:shotImpact .52s ease-out .30s forwards;
+}
+@keyframes shotToTick{
+  0%{left:-28px;opacity:0}
+  10%{opacity:1}
+  100%{left:var(--shot-target-x);opacity:1}
+}
+@keyframes shotImpact{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}
+  25%{opacity:1;transform:translate(-50%,-50%) scale(1.8)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(3.8)}
+}
+
+/* Versión 1.0.6 — borrar: la katana corta la tarjeta y ambas partes se desvanecen */
+.deleting-task{
+  overflow:hidden!important;
+  animation:taskFadeAfterCut .78s ease-in forwards;
+  transform-origin:center;
+}
+.katana-delete .item,
+.katana-delete .delete-task,
+.katana-delete .meta{
+  position:relative;
+}
+.katana-delete .item-title{
+  position:relative;
+}
+.katana-delete .item-title:after{
+  content:"";
+  position:absolute;
+  left:0;
+  top:52%;
+  width:100%;
+  height:2px;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 0 8px rgba(255,255,255,.7);
+}
+.katana-delete-blade{
+  top:50%!important;
+  transform:translateY(-50%) rotate(-7deg)!important;
+  height:4px!important;
+  animation:katanaDeleteSlash .62s cubic-bezier(.15,.82,.18,1) forwards!important;
+}
+@keyframes katanaDeleteSlash{
+  0%{left:-48%;opacity:0}
+  8%{opacity:1}
+  55%{opacity:1}
+  100%{left:108%;opacity:0}
+}
+@keyframes taskFadeAfterCut{
+  0%{opacity:1;transform:translateY(0) scaleY(1);filter:none}
+  42%{opacity:1;transform:translateY(0) scaleY(1)}
+  100%{opacity:0;transform:translateY(10px) scaleY(.88);filter:blur(2px)}
+}

@@ -120,7 +120,7 @@ function itemHtml(x, compact=false){
   const time=x.time?` · ${x.time}`:(x.type==='task'&&x.allDay?' · Todo el día':'');
   return `<div class="card ${compact?'upcoming-item ':''}${x.type==='event'?'event ':''}${x.done?'done ':''}priority-${x.priority||'normal'}">
     <div class="item">
-      ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}"><span class="pokeball-bg"></span><span class="check-mark">${x.done?'✓':''}</span></button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
+      ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}"><span class="pokeball-bg"></span></button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
       <div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="meta">${x.time?'🕐 '+x.time+' · ':''}${x.allDay?'☀️ Todo el día · ':''}${fmtDate(x.date)}${x.priority&&x.priority!=='normal'?` · ${priorityLabel(x.priority)}`:''}${x.done?' · ✓ Hecha':''}</div>${x.notes?`<div class="meta">${esc(x.notes)}</div>`:''}</div>
       <button class="small-btn delete-task" onclick="deleteItem('${x.id}')" title="Eliminar">🗑️</button>
     </div>
@@ -545,6 +545,11 @@ function deleteItem(id){
   const snapshot={...x};
   const btn=document.querySelector(`button[onclick="deleteItem('${id}')"]`);
   const card=btn?.closest('.card');
+  if(card?.dataset.deleting==='1') return;
+  if(card){
+    card.dataset.deleting='1';
+    card.style.pointerEvents='none';
+  }
 
   deleteRemoteReminder(id);
   items=items.filter(item=>item.id!==id);
@@ -553,7 +558,7 @@ function deleteItem(id){
   if(card) playDeleteKatanaAnimation(card);
   else render();
 
-  setTimeout(()=>render(),760);
+  setTimeout(()=>render(),1100);
   showUndoDelete(snapshot);
 }
 

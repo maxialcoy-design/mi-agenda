@@ -180,6 +180,17 @@
 @keyframes undoOut{to{opacity:0;transform:translateY(12px)}}
 
 /* 1.0.11: Poké Ball real + corte físico de la tarjeta */
+/* 1.0.12: Poké Ball solo al completar; estado pendiente vacío */
+.check-btn .pokeball-bg{display:none!important;opacity:1!important;}
+.check-btn:not(.done) .pokeball-bg{display:none!important;}
+.check-btn.done .pokeball-bg{display:block!important;}
+.check-btn .check-mark{display:none!important;}
+
+/* La tarjeta completa también se corta: no queda el fondo original debajo. */
+.katana-delete{background:transparent!important;box-shadow:none!important;border-left:0!important;}
+.katana-delete>.item{visibility:hidden!important;}
+.katana-split-piece{box-shadow:0 3px 18px #0005!important;}
+
 .check-btn .pokeball-bg{
   display:block!important;
   position:absolute!important;

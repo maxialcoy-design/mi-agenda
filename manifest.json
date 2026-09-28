@@ -1,11 +1,12 @@
 {
   "name": "Mi Agenda",
-  "short_name": "Agenda",
-  "start_url": "./",
+  "short_name": "Mi Agenda",
+  "start_url": "/mi-agenda/",
+  "scope": "/mi-agenda/",
   "display": "standalone",
-  "background_color": "#f7f7fb",
-  "theme_color": "#6d5dfc",
-  "description": "Tareas, citas y calendario.",
+  "background_color": "#252923",
+  "theme_color": "#252923",
+  "description": "Mi Agenda: tareas, recordatorios y calendario.",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -19,6 +20,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "scope": "./"
+  ]
 }

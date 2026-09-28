@@ -118,7 +118,7 @@ function normalizeFlexibleItems(){
 normalizeFlexibleItems();
 function itemHtml(x, compact=false){
   const time=x.time?` · ${x.time}`:(x.type==='task'&&x.allDay?' · Todo el día':'');
-  return `<div class="card ${compact?'upcoming-item ':''}${x.type==='event'?'event ':''}${x.done?'done ':' }priority-${x.priority||'normal'}">
+  return `<div class="card ${compact?'upcoming-item ':''}${x.type==='event'?'event ':''}${x.done?'done ':''}priority-${x.priority||'normal'}">
     <div class="item">
       ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}">${x.done?'✓':''}</button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
       <div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="meta">${x.time?'🕐 '+x.time+' · ':''}${x.allDay?'☀️ Todo el día · ':''}${fmtDate(x.date)}${x.priority&&x.priority!=='normal'?` · ${priorityLabel(x.priority)}`:''}${x.done?' · ✓ Hecha':''}</div>${x.notes?`<div class="meta">${esc(x.notes)}</div>`:''}</div>

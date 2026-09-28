@@ -655,12 +655,12 @@ updateMenuStatus();
 render();
 
 /* ==========================================================
-   Mi Agenda 1.0.13 — pulido y funciones de uso diario
+   Mi Agenda 1.0.14 — pulido y funciones de uso diario
    ========================================================== */
 const AUTO_BACKUP_KEY='mi_agenda_auto_backup_v1';
 function autoBackup(){
   try{
-    const backup={app:'Mi Agenda',version:'1.0.13',savedAt:new Date().toISOString(),items:items};
+    const backup={app:'Mi Agenda',version:'1.0.14',savedAt:new Date().toISOString(),items:items};
     localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(backup));
   }catch(e){}
 }

@@ -274,3 +274,21 @@
 @keyframes katanaSweepReal{0%{left:-38%;opacity:0}12%{opacity:1}55%{opacity:1}100%{left:108%;opacity:0}}
 @keyframes splitTopReal{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-70px);opacity:0}}
 @keyframes splitBottomReal{0%{transform:translateY(0);opacity:1}100%{transform:translateY(70px);opacity:0}}
+
+/* Mi Agenda 1.0.13 — mejoras de uso diario */
+.pin-btn{font-size:16px;padding:6px 7px;background:#383d34;color:#d9dfcf;border-radius:10px;flex:none}
+.pin-btn.pinned{color:#d8bd61;background:#4a4938}
+.card.pinned-card{box-shadow:0 0 0 1px #6b704c,0 5px 20px #0006}
+.item-actions{display:flex;align-items:center;gap:5px;margin-left:4px}
+.today-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.today-stat{background:#30352d;border-radius:15px;padding:11px 9px;text-align:center}
+.today-stat b{display:block;font-size:19px}.today-stat span{display:block;font-size:10px;color:#aeb4a7;margin-top:2px}
+.overdue-badge{display:inline-block;margin-left:5px;padding:3px 7px;border-radius:999px;background:#5a3532;color:#f0b6ad;font-size:10px;font-weight:800}
+.week-today-btn{margin:0 0 10px}
+.search-card{max-height:calc(100dvh - 20px);overflow-y:auto}
+.search-results{margin-top:12px;max-height:55vh;overflow:auto}
+.search-result{padding:12px;border-radius:14px;background:#272c26;margin:7px 0;cursor:pointer}
+.search-result b{display:block}.search-result small{display:block;color:#aeb4a7;margin-top:4px}
+.search-empty{text-align:center;padding:25px 10px;color:#aeb4a7}
+.auto-backup-note{font-size:11px;color:#899183;margin-top:8px}
+@media(max-width:480px){.today-summary{gap:6px}.today-stat{padding:9px 5px}}

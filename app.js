@@ -653,3 +653,113 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?version
 installReminderControls();
 updateMenuStatus();
 render();
+
+/* ==========================================================
+   Mi Agenda 1.0.13 — pulido y funciones de uso diario
+   ========================================================== */
+const AUTO_BACKUP_KEY='mi_agenda_auto_backup_v1';
+function autoBackup(){
+  try{
+    const backup={app:'Mi Agenda',version:'1.0.13',savedAt:new Date().toISOString(),items:items};
+    localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(backup));
+  }catch(e){}
+}
+function saveWithAutoBackup(){
+  localStorage.setItem(KEY,JSON.stringify(items));
+  autoBackup();
+}
+// Mantiene una copia local actualizada incluso cuando se usa una función que llama a save() directamente.
+const _oldSave=save;
+save=function(){localStorage.setItem(KEY,JSON.stringify(items));autoBackup();render()};
+autoBackup();
+
+function isOverdue(x){
+  if(x.done) return false;
+  const d=getAgendaDate(x);
+  if(d<today) return true;
+  if(d>today || !x.time || x.allDay) return false;
+  const now=new Date();
+  const [h,m]=x.time.split(':').map(Number);
+  return now.getHours()*60+now.getMinutes() > h*60+m;
+}
+function togglePin(id){
+  const x=items.find(i=>i.id===id); if(!x) return;
+  x.pinned=!x.pinned;
+  saveWithAutoBackup(); render();
+}
+function sortAgenda(a,b){
+  return Number(!!b.pinned)-Number(!!a.pinned) || Number(a.done)-Number(b.done) || (a.time||'99:99').localeCompare(b.time||'99:99') || a.title.localeCompare(b.title,'es');
+}
+function itemHtml13(x,compact=false){
+  const time=x.time?` · ${x.time}`:(x.type==='task'&&x.allDay?' · Todo el día':'');
+  const overdue=isOverdue(x);
+  return `<div class="card ${compact?'upcoming-item ':''}${x.type==='event'?'event ':''}${x.done?'done ':''}${x.pinned?'pinned-card ':''}priority-${x.priority||'normal'}">
+    <div class="item">
+      ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}"><span class="pokeball-bg"></span></button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
+      <div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="meta">${x.time?'🕐 '+x.time+' · ':''}${x.allDay?'☀️ Todo el día · ':''}${fmtDate(x.date)}${x.priority&&x.priority!=='normal'?` · ${priorityLabel(x.priority)}`:''}${x.done?' · ✓ Hecha':''}${overdue?'<span class="overdue-badge">ATRASADA</span>':''}</div>${x.notes?`<div class="meta">${esc(x.notes)}</div>`:''}</div>
+      <div class="item-actions"><button class="pin-btn ${x.pinned?'pinned':''}" onclick="togglePin('${x.id}')" title="${x.pinned?'Desfijar':'Fijar arriba'}">${x.pinned?'📌':'📍'}</button><button class="small-btn delete-task" onclick="deleteItem('${x.id}')" title="Eliminar">🗑️</button></div>
+    </div>
+  </div>`;
+}
+itemHtml=itemHtml13;
+
+// Completar: la Poké Ball aparece directamente, sin disparo ni tick.
+function toggleItem13(id){
+  const x=items.find(i=>i.id===id); if(!x) return;
+  x.done=!x.done; saveWithAutoBackup(); render();
+}
+toggleItem=toggleItem13;
+
+function renderToday13(app){
+  const todays=items.filter(x=>getAgendaDate(x)===today).sort(sortAgenda);
+  const upcoming=items.filter(x=>getAgendaDate(x)>today).sort((a,b)=>a.date.localeCompare(b.date)||sortAgenda(a,b)).slice(0,5);
+  const pending=todays.filter(x=>!x.done).length, done=todays.filter(x=>x.done).length;
+  const overdue=todays.filter(isOverdue).length;
+  const dateLabel=new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
+  app.innerHTML=`<div class="today-hero"><div class="muted">${dateLabel}</div><h2>${todays.length?`Tienes ${todays.length} ${todays.length===1?'cosa':'cosas'} para hoy`:'No tienes nada para hoy 🎉'}</h2><p>${todays.length?'Aquí tienes lo principal de hoy.':'Puedes añadir una tarea con el botón +.'}</p></div>
+  <div class="today-summary"><div class="today-stat"><b>${todays.length}</b><span>TOTAL</span></div><div class="today-stat"><b>${pending}</b><span>PENDIENTES</span></div><div class="today-stat"><b>${done}</b><span>HECHAS</span></div></div>
+  ${overdue?`<div class="muted" style="margin:0 4px 8px">⚠️ ${overdue} ${overdue===1?'tarea atrasada':'tareas atrasadas'}</div>`:''}
+  <div class="section-title"><h2>${todays.length?'Lo de hoy':'Tu día'}</h2></div>
+  ${todays.length?todays.map(itemHtml13).join(''):`<div class="card empty">✨ Día libre. No tienes tareas.</div>`}
+  <div class="section-title"><h2>Próximamente</h2></div>
+  ${upcoming.length?upcoming.map(x=>itemHtml13(x,true)).join(''):`<div class="card empty">No hay nada programado todavía.</div>`}`;
+}
+renderToday=renderToday13;
+
+function renderTasks13(app){
+  const offset=window.agendaWeekOffset||0; const base=new Date(); base.setDate(base.getDate()+offset*7);
+  const weekStart=startOfWeek(base), weekEnd=endOfWeek(base), startKey=dateKey(weekStart), endKey=dateKey(weekEnd);
+  const weekItems=items.filter(x=>getAgendaDate(x)>=startKey&&getAgendaDate(x)<=endKey).sort((a,b)=>getAgendaDate(a).localeCompare(getAgendaDate(b))||sortAgenda(a,b));
+  const pending=weekItems.filter(x=>!x.done).length; const groups={}; weekItems.forEach(x=>(groups[getAgendaDate(x)] ||= []).push(x));
+  const sections=Object.keys(groups).sort().map(date=>`<section class="task-day"><div class="task-day-title"><div>${labelForAgendaDay(date)}</div><span>${groups[date].length} ${groups[date].length===1?'elemento':'elementos'}</span></div>${groups[date].map(itemHtml13).join('')}</section>`).join('');
+  const monthLabel=new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short'}).format(weekStart)+' – '+new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short',year:'numeric'}).format(weekEnd);
+  const future=items.filter(x=>getAgendaDate(x)>dateKey(endOfWeek(new Date()))).length;
+  app.innerHTML=`<div class="week-switch"><button class="small-btn" onclick="changeAgendaWeek(-1)">‹</button><div><h2>${offset===0?'Esta semana':monthLabel}</h2><span class="muted">${monthLabel} · ${pending} pendientes</span></div><button class="small-btn" onclick="changeAgendaWeek(1)">›</button></div>${offset!==0?`<button class="secondary-btn week-today-btn" onclick="agendaWeekOffset=0;render()">↩ Volver a esta semana</button>`:''}${weekItems.length?sections:`<div class="card empty">✨ No tienes nada programado esta semana.</div>`}<div class="week-summary card"><b>${future?`Tienes ${future} ${future===1?'elemento':'elementos'} en semanas futuras.`:'No tienes nada programado más adelante.'}</b>${future?`<button class="secondary-btn" onclick="showFutureItems()">Ver futuras →</button>`:''}</div>`;
+}
+renderTasks=renderTasks13;
+
+function openAgendaSearch(){
+  if(window.menuDialog?.open) menuDialog.close();
+  searchDialog.showModal();
+  $('agendaSearch').value=''; renderSearchResults('');
+  setTimeout(()=>$('agendaSearch').focus(),80);
+}
+function renderSearchResults(q){
+  const term=q.trim().toLocaleLowerCase('es');
+  const found=items.filter(x=>!term || `${x.title} ${x.notes||''} ${x.date} ${x.time||''}`.toLocaleLowerCase('es').includes(term)).sort((a,b)=>sortAgenda(a,b));
+  $('searchResults').innerHTML=found.length?found.slice(0,80).map(x=>`<div class="search-result" onclick="goToSearchItem('${x.id}')"><b>${x.pinned?'📌 ':''}${esc(x.title)}</b><small>${fmtDate(x.date)}${x.time?' · '+x.time:''}${x.done?' · ✓ Hecha':''}${isOverdue(x)?' · ATRASADA':''}</small></div>`).join(''):`<div class="search-empty">No he encontrado tareas.</div>`;
+}
+function goToSearchItem(id){
+  const x=items.find(i=>i.id===id); if(!x) return;
+  searchDialog.close();
+  const d=new Date(x.date+'T12:00:00'); window.agendaWeekOffset=Math.floor((d-startOfWeek(new Date()))/86400000/7);
+  currentView='tasks'; document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='tasks')); render();
+}
+$('agendaSearch').addEventListener('input',e=>renderSearchResults(e.target.value));
+
+// Ordenar fijadas arriba también en Hoy/Próximamente y calendario seleccionado.
+const _oldCalendarDay=calendarDay;
+calendarDay=function(ds){const found=items.filter(x=>getAgendaDate(x)===ds).sort(sortAgenda);$('selectedDay').innerHTML=`<div class="section-title"><h2>${fmtDate(ds)}</h2></div>${found.length?found.map(itemHtml13).join(''):`<div class="card empty">No hay nada para este día.</div>`}`};
+
+// Copia automática al cerrar/ocultar la app.
+window.addEventListener('pagehide',autoBackup); window.addEventListener('beforeunload',autoBackup);

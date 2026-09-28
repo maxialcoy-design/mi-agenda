@@ -120,7 +120,7 @@ function itemHtml(x, compact=false){
   const time=x.time?` · ${x.time}`:(x.type==='task'&&x.allDay?' · Todo el día':'');
   return `<div class="card ${compact?'upcoming-item ':''}${x.type==='event'?'event ':''}${x.done?'done ':''}priority-${x.priority||'normal'}">
     <div class="item">
-      ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}">${x.done?'✓':''}</button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
+      ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}"><span class="pokeball-bg"></span><span class="check-mark">${x.done?'✓':''}</span></button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
       <div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="meta">${x.time?'🕐 '+x.time+' · ':''}${x.allDay?'☀️ Todo el día · ':''}${fmtDate(x.date)}${x.priority&&x.priority!=='normal'?` · ${priorityLabel(x.priority)}`:''}${x.done?' · ✓ Hecha':''}</div>${x.notes?`<div class="meta">${esc(x.notes)}</div>`:''}</div>
       <button class="small-btn delete-task" onclick="deleteItem('${x.id}')" title="Eliminar">🗑️</button>
     </div>
@@ -445,58 +445,46 @@ function playKatanaSound(){
 }
 
 function playCompletionShot(id){
-  const btn=document.querySelector(`button[onclick="toggleItem('${id}')"]`);
-  const card=btn?.closest('.card');
-  if(!card) return;
-
-  card.classList.add('completion-shot');
-  const impact=document.createElement('div');
-  impact.className='shot-impact-only';
-  impact.innerHTML='<span></span><i></i><b></b><em></em>';
-  card.appendChild(impact);
-
-  const rect=card.getBoundingClientRect();
-  const target=btn.getBoundingClientRect();
-  const y=(target.top-rect.top)+(target.height/2);
-  const x=(target.left-rect.left)+(target.width/2);
-  impact.style.left=`${x}px`;
-  impact.style.top=`${y}px`;
-
-  setTimeout(()=>impact.remove(),520);
-  setTimeout(()=>card.classList.remove('completion-shot'),560);
+  // Intentionally empty: completion is now immediate, with no projectile or delay.
 }
 
 function playDeleteKatanaAnimation(card){
   if(!card) return;
   card.classList.add('katana-delete');
+
+  // Create two visual copies of the card and separate them at the exact cut line.
+  const top=document.createElement('div');
+  const bottom=document.createElement('div');
+  top.className='katana-split-piece katana-split-top';
+  bottom.className='katana-split-piece katana-split-bottom';
+  top.innerHTML=card.innerHTML;
+  bottom.innerHTML=card.innerHTML;
+  card.appendChild(top);
+  card.appendChild(bottom);
+
+  const cutY=Math.round(card.offsetHeight/2);
+  top.style.setProperty('--cut-y', cutY+'px');
+  bottom.style.setProperty('--cut-y', cutY+'px');
+
   const blade=document.createElement('div');
   blade.className='katana-delete-blade';
   blade.innerHTML='<span class="katana-handle"></span>';
+  blade.style.setProperty('--cut-y', cutY+'px');
   card.appendChild(blade);
 
   playKatanaSound();
 
-  // The blade crosses the exact middle line of the task row.
-  requestAnimationFrame(()=>{
-    blade.style.setProperty('--cut-y', `${card.querySelector('.item')?.offsetHeight/2 || 34}px`);
-  });
-
-  setTimeout(()=>card.classList.add('katana-cut-done'),430);
-  setTimeout(()=>blade.remove(),760);
+  requestAnimationFrame(()=>card.classList.add('katana-cut-start'));
+  setTimeout(()=>card.classList.add('katana-cut-done'),520);
+  setTimeout(()=>{ top.remove(); bottom.remove(); blade.remove(); },850);
 }
 
 function toggleItem(id){
   const x=items.find(i=>i.id===id);
   if(!x) return;
-  if(x.done){
-    x.done=false;
-    save();
-    return;
-  }
-  x.done=true;
-  localStorage.setItem(KEY,JSON.stringify(items));
-  playCompletionShot(id);
-  setTimeout(()=>render(),680);
+  x.done=!x.done;
+  save();
+  render();
 }
 
 let undoDeleteTimer=null;

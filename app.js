@@ -503,10 +503,37 @@ async function toggleNotificationsFromMenu(){
   updateMenuStatus();
 }
 function enableDailyNotifications(){addDialog.close();requestNotifications()}
+async function checkForUpdates(){
+  const button=document.querySelector('#menuDialog .menu-option:last-child');
+  if(button) button.disabled=true;
+  try{
+    if(!('serviceWorker' in navigator)){
+      alert('Este navegador no admite actualizaciones automáticas.');
+      return;
+    }
+    const registration=await navigator.serviceWorker.getRegistration();
+    if(registration){
+      await registration.update();
+      if(registration.waiting){
+        registration.waiting.postMessage({type:'SKIP_WAITING'});
+      }
+    }else{
+      await navigator.serviceWorker.register('sw.js?update='+Date.now());
+    }
+    alert('Actualización comprobada. La agenda se recargará ahora.');
+    setTimeout(()=>location.reload(),300);
+  }catch(e){
+    console.error('Error buscando actualizaciones:',e);
+    alert('No se ha podido comprobar la actualización. Comprueba tu conexión e inténtalo de nuevo.');
+  }finally{
+    if(button) button.disabled=false;
+  }
+}
+
 $('menuBtn').onclick=()=>{updateMenuStatus();menuDialog.showModal()};
 $('addBtn').onclick=()=>addDialog.showModal();
 document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>{currentView=b.dataset.view;document.querySelectorAll('.bottom-nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()});
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?version=5');
 installReminderControls();
 updateMenuStatus();
 render();

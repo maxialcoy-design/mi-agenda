@@ -1,12 +1,25 @@
-self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
-self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+const SW_VERSION='5';
+
+self.addEventListener('install',event=>{
+  self.skipWaiting();
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('message',event=>{
+  if(event.data && event.data.type==='SKIP_WAITING'){
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener('push',event=>{
   let data={};
   try{ data=event.data?event.data.json():{}; }catch(e){}
   const title=data.title||'Mi Agenda';
   const time=data.time||'';
-  const body=data.body || (time ? 'Tienes una cita a las '+time+': '+(data.title||'') : (data.title||'Tienes un aviso en Mi Agenda.'));
+  const body=data.body || (time ? 'Tienes una tarea a las '+time+': '+(data.title||'') : (data.title||'Tienes un aviso en Mi Agenda.'));
   event.waitUntil(
     self.registration.showNotification(title,{
       body:body,

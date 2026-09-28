@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#252923">
   <meta name="description" content="Mi Agenda: tareas, recordatorios y calendario.">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css">
   <title>Mi Agenda</title>
 </head>
 <body>
@@ -47,6 +47,7 @@
       <button class="menu-option" onclick="toggleNotificationsFromMenu()">🔔 <span>Activar / desactivar notificaciones</span></button>
       <button class="menu-option" onclick="exportBackup();menuDialog.close()">💾 <span>Guardar copia de seguridad</span></button>
       <button class="menu-option" onclick="document.getElementById('backupFile').click();menuDialog.close()">♻️ <span>Recuperar copia de seguridad</span></button>
+      <button class="menu-option" onclick="checkForUpdates()">🔄 <span>Buscar actualizaciones</span></button>
     </div>
   </dialog>
 
@@ -96,6 +97,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

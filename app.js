@@ -301,8 +301,9 @@ async function requestNotifications(){
     localStorage.setItem('dailyNotifications','1');
     localStorage.setItem('dailyTime',localStorage.getItem('dailyTime')||'08:00');
     alert('Notificaciones activadas 🔔');
-  }catch(e){
-    alert('No se han podido activar las notificaciones. Comprueba que Chrome permita las notificaciones para Mi Agenda.');
+    }catch(e){
+    console.error('Error al activar notificaciones:',e);
+    alert('Error al activar las notificaciones:\n\n'+(e?.message||String(e))+'\n\nPermiso: '+Notification.permission);
   }
 }
 function enableDailyNotifications(){addDialog.close();requestNotifications()}

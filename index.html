@@ -5,13 +5,44 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#252923">
   <meta name="description" content="Mi Agenda: tareas, recordatorios y calendario.">
-  <link rel="manifest" href="manifest.json?v=1.0.14">
-  <link rel="icon" type="image/png" sizes="64x64" href="icons/icon-64.png?v=1.0.14">
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.0.14">
+  <link rel="manifest" href="manifest.json?v=1.0.16">
+  <link rel="icon" type="image/png" sizes="64x64" href="icons/icon-64.png?v=1.0.16">
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.0.16">
   <link rel="stylesheet" href="styles.css">
   <title>Mi Agenda</title>
 </head>
 <body>
+<div id="appSplash" aria-hidden="true">
+  <img src="/mi-agenda/icons/splash-icon.png" alt="">
+</div>
+<style>
+  #appSplash{
+    position:fixed;inset:0;z-index:99999;
+    display:flex;align-items:center;justify-content:center;
+    background:#252923;
+    opacity:1;visibility:visible;
+    transition:opacity .22s ease,visibility .22s ease;
+  }
+  #appSplash img{
+    width:min(62vw,280px);height:min(62vw,280px);
+    object-fit:contain;border-radius:22%;
+    animation:agendaSplashIn .32s ease-out both;
+  }
+  #appSplash.hide{opacity:0;visibility:hidden;pointer-events:none}
+  @keyframes agendaSplashIn{
+    from{transform:scale(.72);opacity:.2}
+    to{transform:scale(1);opacity:1}
+  }
+</style>
+<script>
+  window.addEventListener('load',function(){
+    setTimeout(function(){
+      var s=document.getElementById('appSplash');
+      if(s)s.classList.add('hide');
+    },180);
+  });
+</script>
+
   <header class="topbar">
     <div>
       <div class="eyebrow">MI AGENDA</div>
@@ -116,6 +147,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.0.14"></script>
+  <script src="app.js?v=1.0.16"></script>
 </body>
 </html>

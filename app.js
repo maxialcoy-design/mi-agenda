@@ -7,7 +7,7 @@ const iso=d=>{const x=new Date(d);return new Date(x.getTime()-x.getTimezoneOffse
 const today=iso(new Date());
 const PUSH_URL='https://mi-agenda-notificaciones.maxialcoy.workers.dev';
 const PUSH_SUB_KEY='mi_agenda_push_subscription_id';
-const REMINDER_MINUTES=120;
+const DEFAULT_REMINDER_MINUTES=120;
 
 function save(){localStorage.setItem(KEY,JSON.stringify(items));render()}
 
@@ -58,7 +58,8 @@ async function scheduleRemoteReminder(x){
   if(!x.reminder||!x.time) return;
   try{
     const subscriptionId=await setupPush();
-    const due=new Date(x.date+'T'+x.time+':00').getTime()-REMINDER_MINUTES*60000;
+    const reminderMinutes=Number(x.reminderMinutes ?? DEFAULT_REMINDER_MINUTES);
+    const due=new Date(x.date+'T'+x.time+':00').getTime()-reminderMinutes*60000;
     if(!Number.isFinite(due)||due<=Date.now()+5000) return;
     await fetch(PUSH_URL+'/reminder',{
       method:'POST',
@@ -86,25 +87,48 @@ function fmtDate(s){return new Intl.DateTimeFormat('es-ES',{day:'numeric',month:
 function esc(s){return String(s||'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]))}
 
 function render(){
+  normalizeFlexibleItems();
   const app=$('app'); $('pageTitle').textContent={today:'Hoy',calendar:'Calendario',tasks:'Agenda',shared:'Ajustes'}[currentView];
   if(currentView==='today') renderToday(app);
   if(currentView==='tasks') renderTasks(app);
   if(currentView==='calendar') renderCalendar(app);
   if(currentView==='shared') renderShared(app);
 }
+function priorityLabel(p){
+  return p==='flexible'?'🟢 Flexible':p==='priority'?'🟠 Prioritaria':p==='urgent'?'🔴 Muy importante':'⚪ Normal';
+}
+function isFlexible(x){return (x.priority||'normal')==='flexible' && !x.done;}
+function getAgendaDate(x){
+  if(!isFlexible(x)) return x.date;
+  const start=x.flexibleFrom||x.date;
+  if(start<today) return today;
+  return start;
+}
+function normalizeFlexibleItems(){
+  let changed=false;
+  items.forEach(x=>{
+    if(isFlexible(x) && x.date!==today){
+      if(!x.flexibleFrom) x.flexibleFrom=x.date;
+      x.date=today;
+      changed=true;
+    }
+  });
+  if(changed) localStorage.setItem(KEY,JSON.stringify(items));
+}
+normalizeFlexibleItems();
 function itemHtml(x){
   const time=x.time?` · ${x.time}`:(x.type==='task'&&x.allDay?' · Todo el día':'');
-  return `<div class="card ${x.type==='event'?'event':''} ${x.done?'done':''}">
+  return `<div class="card ${x.type==='event'?'event':''} ${x.done?'done':''} priority-${x.priority||'normal'}">
     <div class="item">
       ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}">${x.done?'✓':''}</button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
-      <div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="meta">${x.time?'🕐 '+x.time+' · ':''}${x.allDay?'☀️ Todo el día · ':''}${fmtDate(x.date)}${x.done?' · ✓ Hecha':''}</div>${x.notes?`<div class="meta">${esc(x.notes)}</div>`:''}</div>
+      <div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="meta">${x.time?'🕐 '+x.time+' · ':''}${x.allDay?'☀️ Todo el día · ':''}${fmtDate(x.date)}${x.priority&&x.priority!=='normal'?` · ${priorityLabel(x.priority)}`:''}${x.done?' · ✓ Hecha':''}</div>${x.notes?`<div class="meta">${esc(x.notes)}</div>`:''}</div>
       <button class="small-btn delete-task" onclick="deleteItem('${x.id}')" title="Eliminar">🗑️</button>
     </div>
   </div>`;
 }
 function renderToday(app){
-  const todays=items.filter(x=>x.date===today).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
-  const upcoming=items.filter(x=>x.date>today).sort((a,b)=>(a.date+b.time).localeCompare(b.date+a.time)).slice(0,5);
+  const todays=items.filter(x=>getAgendaDate(x)===today).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
+  const upcoming=items.filter(x=>getAgendaDate(x)>today).sort((a,b)=>(a.date+b.time).localeCompare(b.date+a.time)).slice(0,5);
   const dateLabel=new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
   app.innerHTML=`<div class="today-hero">
     <div class="muted">${dateLabel}</div>
@@ -159,15 +183,15 @@ function renderTasks(app){
   const base=new Date(); base.setDate(base.getDate()+offset*7);
   const weekStart=startOfWeek(base), weekEnd=endOfWeek(base);
   const startKey=dateKey(weekStart), endKey=dateKey(weekEnd);
-  const weekItems=items.filter(x=>x.date>=startKey&&x.date<=endKey)
+  const weekItems=items.filter(x=>getAgendaDate(x)>=startKey&&getAgendaDate(x)<=endKey)
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99')||(a.done-b.done));
   const pending=weekItems.filter(x=>!x.done).length;
-  const groups={}; weekItems.forEach(x=>(groups[x.date] ||= []).push(x));
+  const groups={}; weekItems.forEach(x=>(groups[getAgendaDate(x)] ||= []).push(x));
   const sections=Object.keys(groups).sort().map(date=>`
     <section class="task-day"><div class="task-day-title"><div>${labelForAgendaDay(date)}</div><span>${groups[date].length} ${groups[date].length===1?'elemento':'elementos'}</span></div>
     ${groups[date].map(itemHtml).join('')}</section>`).join('');
   const monthLabel=new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short'}).format(weekStart)+' – '+new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short',year:'numeric'}).format(weekEnd);
-  const future=items.filter(x=>x.date>endOfWeek(new Date())).length;
+  const future=items.filter(x=>getAgendaDate(x)>dateKey(endOfWeek(new Date()))).length;
   app.innerHTML=`<div class="week-switch">
     <button class="small-btn" onclick="changeAgendaWeek(-1)">‹</button>
     <div><h2>${offset===0?'Esta semana':monthLabel}</h2><span class="muted">${monthLabel} · ${pending} pendientes</span></div>
@@ -185,7 +209,7 @@ function renderCalendar(app){
   let cells='';
   for(let i=0;i<start;i++) cells+='<div class="day muted-day"></div>';
   for(let d=1;d<=days;d++){
-    const ds=iso(new Date(y,m,d)), count=items.filter(x=>x.date===ds).length;
+    const ds=iso(new Date(y,m,d)), count=items.filter(x=>getAgendaDate(x)===ds).length;
     cells+=`<div class="day ${ds===today?'today':''}" onclick="calendarDay('${ds}')"><div class="daynum">${d}</div>${count?'<span class="dot"></span>'.repeat(Math.min(count,4)):''}</div>`;
   }
   app.innerHTML=`<div class="calendar-head"><h2>${new Intl.DateTimeFormat('es-ES',{month:'long',year:'numeric'}).format(first)}</h2><div class="month-nav"><button class="small-btn" onclick="changeMonth(-1)">‹</button><button class="small-btn" onclick="changeMonth(1)">›</button></div></div>
@@ -193,7 +217,7 @@ function renderCalendar(app){
   <div id="selectedDay"></div>`;
 }
 function calendarDay(ds){
-  const found=items.filter(x=>x.date===ds);
+  const found=items.filter(x=>getAgendaDate(x)===ds);
   $('selectedDay').innerHTML=`<div class="section-title"><h2>${fmtDate(ds)}</h2></div>${found.length?found.map(itemHtml).join(''):`<div class="card empty">No hay nada para este día.</div>`}`;
 }
 function changeMonth(n){calendarDate.setMonth(calendarDate.getMonth()+n);render()}
@@ -247,26 +271,173 @@ function importBackup(event){
   reader.readAsText(file);
 }
 
-function openTaskForm(){addDialog.close();$('formTitle').textContent='Nueva tarea';$('itemType').value='task';openForm();updateFormType()}
-function openEventForm(){addDialog.close();$('formTitle').textContent='Nueva cita';$('itemType').value='event';openForm();updateFormType()}
-function openForm(){ $('itemForm').reset();$('date').value=today;$('formDialog').showModal()}
-function updateFormType(){
-  const event=$('itemType').value==='event';
-  $('endWrap').style.display=event?'block':'none';
-  $('allDayWrap').style.display=event?'none':'flex';
-  $('repeatWrap').style.display='block';
-  $('timeWrap').style.display=event?'block':($('allDay').checked?'none':'block');
-  if(event){ $('allDay').checked=false; $('repeat').value='none'; }
+
+function installReminderControls(){
+  const reminder=$('reminder');
+  if(!reminder || $('reminderTimeWrap')) return;
+  const label=document.createElement('label');
+  label.id='reminderTimeWrap';
+  label.textContent='Avisarme con antelación';
+  const select=document.createElement('select');
+  select.id='reminderMinutes';
+  [
+    ['5','5 minutos antes'],
+    ['10','10 minutos antes'],
+    ['15','15 minutos antes'],
+    ['30','30 minutos antes'],
+    ['60','1 hora antes'],
+    ['120','2 horas antes'],
+    ['1440','1 día antes']
+  ].forEach(([value,text])=>{
+    const option=document.createElement('option');
+    option.value=value;
+    option.textContent=text;
+    if(value==='120') option.selected=true;
+    select.appendChild(option);
+  });
+  label.appendChild(select);
+  reminder.closest('label').insertAdjacentElement('afterend',label);
+  const style=document.createElement('style');
+  style.textContent=`
+    dialog{border:0;outline:0;padding:0;background:transparent;max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);margin:auto;overflow:hidden}
+    #formDialog .dialog-card{width:min(520px,calc(100vw - 20px));max-height:calc(100dvh - 20px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px;border-radius:22px}
+    #formDialog .dialog-head{position:sticky;top:-18px;background:white;z-index:3;padding-top:2px;padding-bottom:8px}
+    #formDialog #reminderTimeWrap{display:none}
+    #formDialog #reminderTimeWrap select{margin-top:6px}
+    @media(max-width:480px){
+      #formDialog .dialog-card{padding:16px;border-radius:20px}
+      #formDialog label{margin:9px 0}
+      #formDialog input,#formDialog select,#formDialog textarea{padding:10px}
+      #formDialog .primary{margin-top:5px}
+    }
+  `;
+  document.head.appendChild(style);
 }
-$('allDay').addEventListener('change',()=>{ $('timeWrap').style.display=$('allDay').checked?'none':'block'; if($('allDay').checked)$('time').value=''; });
+
+function openTaskForm(){addDialog.close();$('formTitle').textContent='Nueva tarea';$('itemType').value='task';openForm();updateFormType()}
+function openForm(){
+  
+const themeStyle=document.createElement('style');
+themeStyle.textContent=`
+:root{
+  --bg:#252923;--surface:#30352d;--surface2:#383d34;--text:#f0f1eb;--muted:#aeb4a7;
+  --accent:#65783b;--accent2:#758a45;--border:#4a5144;--danger:#b86a63;--warn:#b28a4a;
+}
+body{background:var(--bg)!important;color:var(--text)!important}
+.topbar{background:rgba(37,41,35,.94)!important}
+.eyebrow{color:#aeb4a7}.topbar h1{color:var(--text)}
+.icon-btn{background:var(--surface)!important;color:var(--text);box-shadow:0 2px 12px #0005!important;font-size:28px}
+.content{color:var(--text)}
+.card,.today-hero,.share-card,.popup-card,.dialog-card{background:var(--surface)!important;color:var(--text);box-shadow:0 5px 22px #0005!important}
+.card.empty{color:var(--muted)}
+.meta,.muted,.popup-list small{color:var(--muted)!important}
+.bottom-nav{background:#20241f!important;border-color:#3c4239!important}
+.bottom-nav button{color:#9da398}.bottom-nav button.active{color:#9aaa62}
+.fab{background:var(--accent)!important;box-shadow:0 8px 24px #0008!important}
+.primary{background:var(--accent)!important}
+.secondary-btn{background:#3d4734!important;color:#c8d5a9!important}
+.small-btn,.close{background:var(--surface2)!important;color:var(--text)}
+.day,.weekday{background:var(--surface)!important;color:var(--text)}
+.day.today{outline-color:var(--accent)!important}.dot{background:var(--accent)!important}
+dialog{background:transparent!important}
+input,textarea,select{background:#272c26!important;color:var(--text)!important;border-color:var(--border)!important}
+input::placeholder,textarea::placeholder{color:#8f968a}
+.choice{background:var(--surface2)!important;color:var(--text)}
+#allDayWrap{background:var(--surface2)!important}
+.menu-option{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px;margin:7px 0;border-radius:14px;background:var(--surface2);color:var(--text);font-weight:700}
+.menu-option span{flex:1}.menu-status{display:flex;align-items:center;gap:12px;padding:12px 0 8px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.menu-status>span{font-size:25px}.menu-status small{display:block;color:var(--muted);margin-top:2px}
+.menu-btn{line-height:1}.menu-card{max-width:430px}
+.priority-flexible{border-left:4px solid #65783b}.priority-priority{border-left:4px solid #b28a4a}.priority-urgent{border-left:4px solid #b86a63}
+.katana-cut{position:relative;overflow:hidden}
+.katana-blade{position:absolute;top:-25%;left:-22%;font-size:42px;transform:rotate(-18deg);animation:katanaSlash .5s ease-out forwards;pointer-events:none;z-index:20;filter:drop-shadow(0 0 7px #fff)}
+@keyframes katanaSlash{0%{left:-25%;opacity:0;transform:rotate(-18deg) scale(.8)}15%{opacity:1}100%{left:105%;opacity:0;transform:rotate(-18deg) scale(1.05)}}
+.katana-cut .item-title{text-decoration:line-through;text-decoration-thickness:2px}
+@media(max-width:480px){
+  dialog{max-width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important}
+  #formDialog .dialog-card,#menuDialog .dialog-card{width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important;overflow-y:auto}
+}
+`;
+document.head.appendChild(themeStyle);
+
+installReminderControls();
+  $('itemForm').reset();
+  $('date').value=today;
+  $('reminderMinutes').value='120';
+  $('formDialog').showModal();
+}
+function updateFormType(){
+  $('endWrap').style.display='none';
+  $('allDayWrap').style.display='flex';
+  $('repeatWrap').style.display='block';
+  $('timeWrap').style.display=$('allDay').checked?'none':'block';
+  $('reminderTimeWrap').style.display=$('reminder').checked&&!$('allDay').checked?'block':'none';
+}
+$('allDay').addEventListener('change',()=>{
+  $('timeWrap').style.display=$('allDay').checked?'none':'block';
+  if($('allDay').checked)$('time').value='';
+  updateFormType();
+});
+$('reminder').addEventListener('change',()=>updateFormType());
 $('itemForm').addEventListener('submit',e=>{
  e.preventDefault();
- const isEvent=$('itemType').value==='event';
- const allDay=!isEvent && $('allDay').checked;
- const x={id:crypto.randomUUID(),type:$('itemType').value,title:$('title').value.trim(),date:$('date').value,time:allDay?'':$('time').value,endTime:isEvent?$('endTime').value:'',allDay,notes:$('notes').value.trim(),reminder:$('reminder').checked,done:false};
+ const isEvent=false;
+ const allDay=$('allDay').checked;
+ const x={
+   id:crypto.randomUUID(),
+   type:'task',
+   title:$('title').value.trim(),
+   date:$('date').value,
+   time:allDay?'':$('time').value,
+   endTime:'',
+   allDay,
+   notes:$('notes').value.trim(),
+   reminder:$('reminder').checked,
+   reminderMinutes:Number($('reminderMinutes').value||DEFAULT_REMINDER_MINUTES),
+   priority:$('priority').value||'normal',
+   flexibleFrom:($('priority').value==='flexible'?$('date').value:null),
+   done:false
+ };
  items.push(x);save();formDialog.close();scheduleRemoteReminder(x);
 });
-function toggleItem(id){const x=items.find(i=>i.id===id);if(x){x.done=!x.done;save()}}
+function playKatanaSound(){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;
+    if(!C) return;
+    const ctx=new C(), now=ctx.currentTime;
+    const osc=ctx.createOscillator(), gain=ctx.createGain();
+    osc.type='sawtooth';
+    osc.frequency.setValueAtTime(900,now);
+    osc.frequency.exponentialRampToValueAtTime(220,now+0.16);
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.18,now+0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.18);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now); osc.stop(now+0.2);
+    setTimeout(()=>ctx.close(),300);
+  }catch(e){}
+}
+function playKatanaAnimation(id){
+  const btn=document.querySelector(`button[onclick="toggleItem('${id}')"]`);
+  const card=btn?.closest('.card');
+  if(!card) return;
+  card.classList.add('katana-cut');
+  const blade=document.createElement('div');
+  blade.className='katana-blade';
+  blade.innerHTML='⚔️';
+  card.appendChild(blade);
+  playKatanaSound();
+  setTimeout(()=>blade.remove(),520);
+  setTimeout(()=>card.classList.remove('katana-cut'),650);
+}
+function toggleItem(id){
+  const x=items.find(i=>i.id===id);
+  if(x){
+    if(!x.done) playKatanaAnimation(id);
+    x.done=!x.done;
+    save();
+  }
+}
 function deleteItem(id){
   const x=items.find(i=>i.id===id);
   if(confirm(`¿Eliminar "${x?.title||'este elemento'}"? Esta acción quitará la tarea de tu agenda.`)){
@@ -277,7 +448,7 @@ function deleteItem(id){
 
 function saveDailyTime(value){localStorage.setItem('dailyTime',value)}
 function dailyNotificationText(){
-  const todayItems=items.filter(x=>x.date===today).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  const todayItems=items.filter(x=>getAgendaDate(x)===today).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
   if(!todayItems.length) return 'Hoy no tienes nada programado. ☀️';
   const names=todayItems.slice(0,5).map(x=>`${x.time?x.time+' · ':''}${x.title}`).join(' | ');
   return `Hoy tienes ${todayItems.length} ${todayItems.length===1?'cosa':'cosas'}: ${names}`;
@@ -301,14 +472,41 @@ async function requestNotifications(){
     localStorage.setItem('dailyNotifications','1');
     localStorage.setItem('dailyTime',localStorage.getItem('dailyTime')||'08:00');
     alert('Notificaciones activadas 🔔');
+    updateMenuStatus();
     }catch(e){
     console.error('Error al activar notificaciones:',e);
     alert('Error al activar las notificaciones:\n\n'+(e?.message||String(e))+'\n\nPermiso: '+Notification.permission);
   }
 }
+function notificationsAreOn(){
+  return ('Notification' in window && Notification.permission==='granted' && localStorage.getItem('dailyNotifications')==='1');
+}
+function updateMenuStatus(){
+  const on=notificationsAreOn();
+  const icon=$('menuNotificationIcon');
+  const text=$('menuNotificationText');
+  if(icon) icon.textContent=on?'🔔':'🔕';
+  if(text) text.textContent=on?'Activadas':'Desactivadas';
+}
+async function toggleNotificationsFromMenu(){
+  if(notificationsAreOn()){
+    if(!confirm('Las notificaciones están activadas. ¿Quieres desactivarlas?')) return;
+    localStorage.setItem('dailyNotifications','0');
+    alert('Notificaciones desactivadas 🔕');
+    updateMenuStatus();
+    menuDialog.close();
+    return;
+  }
+  if(!confirm('Las notificaciones están desactivadas. ¿Quieres activarlas?')) return;
+  menuDialog.close();
+  await requestNotifications();
+  updateMenuStatus();
+}
 function enableDailyNotifications(){addDialog.close();requestNotifications()}
-$('notifyBtn').onclick=enableDailyNotifications;
+$('menuBtn').onclick=()=>{updateMenuStatus();menuDialog.showModal()};
 $('addBtn').onclick=()=>addDialog.showModal();
 document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>{currentView=b.dataset.view;document.querySelectorAll('.bottom-nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()});
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+installReminderControls();
+updateMenuStatus();
 render();

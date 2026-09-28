@@ -59,7 +59,7 @@
         <label>Título<input id="title" required maxlength="100" placeholder="¿Qué necesitas hacer?"></label>
         <div class="two">
           <label>Fecha<input id="date" type="date" required></label>
-          <label id="timeWrap">Hora<input id="time" type="time"></label>
+          <label id="timeWrap">Hora<input id="time" type="text" inputmode="numeric" readonly placeholder="Seleccionar hora" onclick="openTimePicker()"></label>
         </div>
         <label id="allDayWrap" class="check"><input id="allDay" type="checkbox"> Todo el día</label>
         <label id="endWrap">Hora de fin<input id="endTime" type="time"></label>
@@ -97,6 +97,22 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=5"></script>
+
+  <dialog id="timePickerDialog">
+    <div class="time-picker-card">
+      <div class="time-picker-head"><h2>Seleccionar hora</h2><button class="close" onclick="timePickerDialog.close()">×</button></div>
+      <div class="time-picker-value">
+        <select id="pickerHour" aria-label="Hora"></select>
+        <span>:</span>
+        <select id="pickerMinute" aria-label="Minutos"></select>
+      </div>
+      <div class="time-picker-actions">
+        <button type="button" class="time-cancel" onclick="timePickerDialog.close()">Cancelar</button>
+        <button type="button" class="time-confirm" onclick="confirmTimePicker()">Establecer</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="app.js?v=1.0.1"></script>
 </body>
 </html>

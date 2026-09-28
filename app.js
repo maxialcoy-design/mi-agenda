@@ -116,9 +116,9 @@ function normalizeFlexibleItems(){
   if(changed) localStorage.setItem(KEY,JSON.stringify(items));
 }
 normalizeFlexibleItems();
-function itemHtml(x){
+function itemHtml(x, compact=false){
   const time=x.time?` · ${x.time}`:(x.type==='task'&&x.allDay?' · Todo el día':'');
-  return `<div class="card ${x.type==='event'?'event':''} ${x.done?'done':''} priority-${x.priority||'normal'}">
+  return `<div class="card ${compact?'upcoming-item ':''}${x.type==='event'?'event ':''}${x.done?'done ':' }priority-${x.priority||'normal'}">
     <div class="item">
       ${x.type==='task'?`<button class="check-btn ${x.done?'done':''}" onclick="toggleItem('${x.id}')" title="${x.done?'Marcar como pendiente':'Marcar como hecha'}">${x.done?'✓':''}</button>`:`<div class="check-btn" style="border-color:#6d5dfc"></div>`}
       <div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="meta">${x.time?'🕐 '+x.time+' · ':''}${x.allDay?'☀️ Todo el día · ':''}${fmtDate(x.date)}${x.priority&&x.priority!=='normal'?` · ${priorityLabel(x.priority)}`:''}${x.done?' · ✓ Hecha':''}</div>${x.notes?`<div class="meta">${esc(x.notes)}</div>`:''}</div>
@@ -138,7 +138,7 @@ function renderToday(app){
   <div class="section-title"><h2>${todays.length?'Lo de hoy':'Tu día'}</h2></div>
   ${todays.length?todays.map(itemHtml).join(''):`<div class="card empty">✨ Día libre. No tienes tareas ni citas.</div>`}
   <div class="section-title"><h2>Próximamente</h2></div>
-  ${upcoming.length?upcoming.map(itemHtml).join(''):`<div class="card empty">No hay nada programado todavía.</div>`}`;
+  ${upcoming.length?upcoming.map(x=>itemHtml(x,true)).join(''):`<div class="card empty">No hay nada programado todavía.</div>`}`;
   setTimeout(()=>showTodayPopup(todays),250);
 }
 function showTodayPopup(todays){
@@ -314,6 +314,35 @@ function installReminderControls(){
   document.head.appendChild(style);
 }
 
+
+function initTimePicker(){
+  const h=$('pickerHour'),m=$('pickerMinute');
+  if(!h||!m) return;
+  if(!h.options.length){
+    for(let i=0;i<24;i++){
+      const o=document.createElement('option');
+      o.value=String(i).padStart(2,'0'); o.textContent=String(i).padStart(2,'0'); h.appendChild(o);
+    }
+    for(let i=0;i<60;i++){
+      const o=document.createElement('option');
+      o.value=String(i).padStart(2,'0'); o.textContent=String(i).padStart(2,'0'); m.appendChild(o);
+    }
+  }
+}
+function openTimePicker(){
+  initTimePicker();
+  const current=$('time').value||'';
+  const parts=current.split(':');
+  const now=new Date();
+  $('pickerHour').value=parts[0]||String(now.getHours()).padStart(2,'0');
+  $('pickerMinute').value=parts[1]||String(now.getMinutes()).padStart(2,'0');
+  $('timePickerDialog').showModal();
+}
+function confirmTimePicker(){
+  $('time').value=$('pickerHour').value+':'+$('pickerMinute').value;
+  $('timePickerDialog').close();
+}
+
 function openTaskForm(){addDialog.close();$('formTitle').textContent='Nueva tarea';$('itemType').value='task';openForm();updateFormType()}
 function openForm(){
   
@@ -363,6 +392,7 @@ document.head.appendChild(themeStyle);
 installReminderControls();
   $('itemForm').reset();
   $('date').value=today;
+  $('time').value='';
   $('reminderMinutes').value='120';
   $('formDialog').showModal();
 }
@@ -400,21 +430,16 @@ $('itemForm').addEventListener('submit',e=>{
  };
  items.push(x);save();formDialog.close();scheduleRemoteReminder(x);
 });
+let katanaAudio=null;
 function playKatanaSound(){
   try{
-    const C=window.AudioContext||window.webkitAudioContext;
-    if(!C) return;
-    const ctx=new C(), now=ctx.currentTime;
-    const osc=ctx.createOscillator(), gain=ctx.createGain();
-    osc.type='sawtooth';
-    osc.frequency.setValueAtTime(900,now);
-    osc.frequency.exponentialRampToValueAtTime(220,now+0.16);
-    gain.gain.setValueAtTime(0.0001,now);
-    gain.gain.exponentialRampToValueAtTime(0.18,now+0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.18);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now); osc.stop(now+0.2);
-    setTimeout(()=>ctx.close(),300);
+    if(!katanaAudio){
+      katanaAudio=new Audio('katana.mp3');
+      katanaAudio.preload='auto';
+    }
+    katanaAudio.currentTime=0;
+    const promise=katanaAudio.play();
+    if(promise&&promise.catch) promise.catch(()=>{});
   }catch(e){}
 }
 function playKatanaAnimation(id){
@@ -424,19 +449,24 @@ function playKatanaAnimation(id){
   card.classList.add('katana-cut');
   const blade=document.createElement('div');
   blade.className='katana-blade';
-  blade.innerHTML='⚔️';
+  blade.innerHTML='<span></span>';
   card.appendChild(blade);
   playKatanaSound();
-  setTimeout(()=>blade.remove(),520);
-  setTimeout(()=>card.classList.remove('katana-cut'),650);
+  setTimeout(()=>blade.remove(),560);
+  setTimeout(()=>card.classList.remove('katana-cut'),700);
 }
 function toggleItem(id){
   const x=items.find(i=>i.id===id);
-  if(x){
-    if(!x.done) playKatanaAnimation(id);
-    x.done=!x.done;
+  if(!x) return;
+  if(x.done){
+    x.done=false;
     save();
+    return;
   }
+  x.done=true;
+  localStorage.setItem(KEY,JSON.stringify(items));
+  playKatanaAnimation(id);
+  setTimeout(()=>render(),720);
 }
 function deleteItem(id){
   const x=items.find(i=>i.id===id);

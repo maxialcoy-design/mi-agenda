@@ -178,3 +178,88 @@
 .undo-delete-bar.hide{animation:undoOut .22s ease-in forwards}
 @keyframes undoIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes undoOut{to{opacity:0;transform:translateY(12px)}}
+
+/* 1.0.11: Poké Ball real + corte físico de la tarjeta */
+.check-btn .pokeball-bg{
+  display:block!important;
+  position:absolute!important;
+  inset:1px!important;
+  width:auto!important;
+  height:auto!important;
+  border-radius:50%!important;
+  background:linear-gradient(to bottom,#e84e46 0 46%,#20241f 46% 54%,#f1f2ec 54% 100%)!important;
+  box-shadow:inset 0 0 0 2px #11150f,0 1px 4px #0008!important;
+}
+.check-btn.done .pokeball-bg{display:block!important;opacity:1!important;}
+.check-btn .check-mark{color:#79d65a!important;font-size:18px!important;text-shadow:0 1px 2px #172014,0 0 2px #172014!important;}
+
+.katana-delete{
+  position:relative!important;
+  overflow:hidden!important;
+  min-height:58px!important;
+  isolation:isolate;
+}
+.katana-delete>.item{visibility:hidden!important;}
+.katana-split-piece{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  margin:0!important;
+  padding:15px!important;
+  width:100%!important;
+  height:100%!important;
+  box-sizing:border-box!important;
+  background:#30352d!important;
+  border-radius:20px!important;
+  box-shadow:0 3px 18px #0005!important;
+  pointer-events:none!important;
+  z-index:30!important;
+  overflow:hidden!important;
+  opacity:1;
+}
+.katana-split-piece .item{width:100%;height:100%;display:flex;align-items:center;gap:12px;}
+.katana-split-top{clip-path:inset(0 0 50% 0)!important;}
+.katana-split-bottom{clip-path:inset(50% 0 0 0)!important;}
+.katana-cut-start .katana-split-top{animation:splitTopReal .62s cubic-bezier(.18,.78,.2,1) forwards!important;}
+.katana-cut-start .katana-split-bottom{animation:splitBottomReal .62s cubic-bezier(.18,.78,.2,1) forwards!important;}
+
+.katana-delete-blade{
+  position:absolute!important;
+  z-index:90!important;
+  left:-38%!important;
+  top:50%!important;
+  width:176%!important;
+  height:9px!important;
+  border-radius:999px!important;
+  background:linear-gradient(90deg,transparent 0%,#9da895 4%,#ffffff 12%,#ffffff 82%,#e5eee0 94%,transparent 100%)!important;
+  transform:translateY(-50%) rotate(-5deg)!important;
+  box-shadow:0 0 6px #fff,0 0 14px #dce8d0!important;
+  pointer-events:none!important;
+  animation:katanaSweepReal .62s cubic-bezier(.12,.8,.16,1) forwards!important;
+}
+.katana-delete-blade .katana-guard{
+  position:absolute!important;
+  right:7%!important;
+  top:-7px!important;
+  width:8px!important;
+  height:23px!important;
+  border-radius:4px!important;
+  background:#9b7a43!important;
+  box-shadow:0 1px 3px #0009!important;
+  transform:rotate(5deg)!important;
+}
+.katana-delete-blade .katana-handle{
+  position:absolute!important;
+  right:0!important;
+  top:-6px!important;
+  width:72px!important;
+  height:20px!important;
+  border-radius:5px!important;
+  background:repeating-linear-gradient(135deg,#27221e 0 7px,#d5c8b4 7px 10px,#27221e 10px 17px)!important;
+  box-shadow:0 2px 4px #0009!important;
+  transform:rotate(5deg)!important;
+}
+.katana-cut-done{animation:none!important;}
+@keyframes katanaSweepReal{0%{left:-38%;opacity:0}12%{opacity:1}55%{opacity:1}100%{left:108%;opacity:0}}
+@keyframes splitTopReal{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-70px);opacity:0}}
+@keyframes splitBottomReal{0%{transform:translateY(0);opacity:1}100%{transform:translateY(70px);opacity:0}}

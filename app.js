@@ -378,10 +378,6 @@ input::placeholder,textarea::placeholder{color:#8f968a}
 .menu-status>span{font-size:25px}.menu-status small{display:block;color:var(--muted);margin-top:2px}
 .menu-btn{line-height:1}.menu-card{max-width:430px}
 .priority-flexible{border-left:4px solid #65783b}.priority-priority{border-left:4px solid #b28a4a}.priority-urgent{border-left:4px solid #b86a63}
-.katana-cut{position:relative;overflow:hidden}
-.katana-blade{position:absolute;top:-25%;left:-22%;font-size:42px;transform:rotate(-18deg);animation:katanaSlash .5s ease-out forwards;pointer-events:none;z-index:20;filter:drop-shadow(0 0 7px #fff)}
-@keyframes katanaSlash{0%{left:-25%;opacity:0;transform:rotate(-18deg) scale(.8)}15%{opacity:1}100%{left:105%;opacity:0;transform:rotate(-18deg) scale(1.05)}}
-.katana-cut .item-title{text-decoration:line-through;text-decoration-thickness:2px}
 @media(max-width:480px){
   dialog{max-width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important}
   #formDialog .dialog-card,#menuDialog .dialog-card{width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important;overflow-y:auto}
@@ -450,40 +446,60 @@ function playCompletionShot(id){
 
 function playDeleteKatanaAnimation(card){
   if(!card) return;
+
+  // Freeze the card's current size while the two halves animate.
+  const rect=card.getBoundingClientRect();
+  const height=card.offsetHeight;
+  const width=card.offsetWidth;
   card.classList.add('katana-delete');
+  card.style.height=height+'px';
+  card.style.minHeight=height+'px';
 
-  // Create two visual copies of the card and separate them at the exact cut line.
-  const top=document.createElement('div');
-  const bottom=document.createElement('div');
-  top.className='katana-split-piece katana-split-top';
-  bottom.className='katana-split-piece katana-split-bottom';
-  top.innerHTML=card.innerHTML;
-  bottom.innerHTML=card.innerHTML;
-  card.appendChild(top);
-  card.appendChild(bottom);
+  // Hide the original content: only the two clipped halves are shown.
+  const original=card.querySelector(':scope > .item');
+  if(original) original.style.visibility='hidden';
 
-  const cutY=Math.round(card.offsetHeight/2);
-  top.style.setProperty('--cut-y', cutY+'px');
-  bottom.style.setProperty('--cut-y', cutY+'px');
+  const makePiece=(cls,clip)=>{
+    const piece=document.createElement('div');
+    piece.className='katana-split-piece '+cls;
+    piece.style.width=width+'px';
+    piece.style.height=height+'px';
+    piece.style.clipPath=clip;
+    piece.innerHTML='<div class="item">'+(original?original.innerHTML:'')+'</div>';
+    piece.querySelectorAll('button').forEach(b=>{b.disabled=true;});
+    card.appendChild(piece);
+    return piece;
+  };
+
+  const top=makePiece('katana-split-top','inset(0 0 50% 0)');
+  const bottom=makePiece('katana-split-bottom','inset(50% 0 0 0)');
 
   const blade=document.createElement('div');
   blade.className='katana-delete-blade';
-  blade.innerHTML='<span class="katana-handle"></span>';
-  blade.style.setProperty('--cut-y', cutY+'px');
+  blade.innerHTML='<span class="katana-guard"></span><span class="katana-handle"></span>';
   card.appendChild(blade);
 
   playKatanaSound();
-
   requestAnimationFrame(()=>card.classList.add('katana-cut-start'));
-  setTimeout(()=>card.classList.add('katana-cut-done'),520);
-  setTimeout(()=>{ top.remove(); bottom.remove(); blade.remove(); },850);
+
+  setTimeout(()=>{
+    card.classList.add('katana-cut-done');
+  },700);
+
+  setTimeout(()=>{
+    top.remove();
+    bottom.remove();
+    blade.remove();
+    card.style.height='';
+    card.style.minHeight='';
+  },1050);
 }
 
 function toggleItem(id){
   const x=items.find(i=>i.id===id);
   if(!x) return;
   x.done=!x.done;
-  save();
+  localStorage.setItem(KEY,JSON.stringify(items));
   render();
 }
 

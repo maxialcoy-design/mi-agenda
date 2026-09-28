@@ -73,3 +73,37 @@
   10%{opacity:1}
   100%{left:110%;opacity:0}
 }
+
+
+/* Katana strike: the blade crosses the task text itself. */
+.katana-cut{position:relative;overflow:hidden}
+.katana-blade{
+  position:absolute;
+  top:44%;
+  left:-45%;
+  width:145%;
+  height:5px;
+  border-radius:999px;
+  background:linear-gradient(90deg,transparent 0%,#dfe8d8 5%,#ffffff 18%,#ffffff 82%,#dfe8d8 95%,transparent 100%);
+  transform:rotate(-9deg);
+  animation:katanaSlash .56s cubic-bezier(.18,.78,.2,1) forwards;
+  pointer-events:none;
+  z-index:50;
+  box-shadow:0 0 5px rgba(255,255,255,.8),0 0 12px rgba(220,232,208,.45);
+}
+.katana-blade:after{
+  content:"";
+  position:absolute;
+  right:3%;
+  top:-5px;
+  width:18px;
+  height:15px;
+  border-radius:3px;
+  background:#76583e;
+  transform:rotate(9deg);
+}
+@keyframes katanaSlash{
+  0%{left:-45%;opacity:0}
+  8%{opacity:1}
+  100%{left:105%;opacity:0}
+}

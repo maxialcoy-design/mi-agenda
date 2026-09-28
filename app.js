@@ -5,10 +5,85 @@ let currentView='today', calendarDate=new Date();
 const $=id=>document.getElementById(id);
 const iso=d=>{const x=new Date(d);return new Date(x.getTime()-x.getTimezoneOffset()*60000).toISOString().slice(0,10)};
 const today=iso(new Date());
+const PUSH_URL='https://mi-agenda-notificaciones.maxialcoy.workers.dev';
+const PUSH_SUB_KEY='mi_agenda_push_subscription_id';
+const REMINDER_MINUTES=120;
 
 function save(){localStorage.setItem(KEY,JSON.stringify(items));render()}
+
+function base64urlToUint8Array(base64url){
+  const padded=base64url+'='.repeat((4-(base64url.length%4))%4);
+  const binary=atob(padded.replace(/-/g,'+').replace(/_/g,'/'));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  return bytes;
+}
+
+async function setupPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
+    throw new Error('Este navegador no admite notificaciones push.');
+  }
+  if(Notification.permission!=='granted'){
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted') throw new Error('Permiso de notificaciones no concedido.');
+  }
+  const reg=await navigator.serviceWorker.ready;
+  let subscription=await reg.pushManager.getSubscription();
+  if(!subscription){
+    const r=await fetch(PUSH_URL+'/public-key',{cache:'no-store'});
+    if(!r.ok) throw new Error('No se pudo obtener la clave VAPID.');
+    const data=await r.json();
+    subscription=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:base64urlToUint8Array(data.publicKey)
+    });
+  }
+  const subJson=subscription.toJSON();
+  const response=await fetch(PUSH_URL+'/subscribe',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      endpoint:subJson.endpoint,
+      expirationTime:subJson.expirationTime||null,
+      keys:subJson.keys
+    })
+  });
+  if(!response.ok) throw new Error('No se pudo registrar el móvil en el servidor.');
+  const saved=await response.json();
+  localStorage.setItem(PUSH_SUB_KEY,String(saved.subscriptionId));
+  return saved.subscriptionId;
+}
+
+async function scheduleRemoteReminder(x){
+  if(!x.reminder||!x.time) return;
+  try{
+    const subscriptionId=await setupPush();
+    const due=new Date(x.date+'T'+x.time+':00').getTime()-REMINDER_MINUTES*60000;
+    if(!Number.isFinite(due)||due<=Date.now()+5000) return;
+    await fetch(PUSH_URL+'/reminder',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        id:x.id,
+        subscriptionId:subscriptionId,
+        dueAt:due,
+        title:x.title,
+        itemTime:x.time
+      })
+    });
+  }catch(e){
+    console.warn('No se pudo programar el aviso push:',e);
+  }
+}
+
+async function deleteRemoteReminder(id){
+  try{
+    await fetch(PUSH_URL+'/reminder?id='+encodeURIComponent(id),{method:'DELETE'});
+  }catch(e){}
+}
+
 function fmtDate(s){return new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short'}).format(new Date(s+'T12:00:00'))}
-function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function esc(s){return String(s||'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]))}
 
 function render(){
   const app=$('app'); $('pageTitle').textContent={today:'Hoy',calendar:'Calendario',tasks:'Agenda',shared:'Ajustes'}[currentView];
@@ -41,8 +116,7 @@ function renderToday(app){
   <div class="section-title"><h2>Próximamente</h2></div>
   ${upcoming.length?upcoming.map(itemHtml).join(''):`<div class="card empty">No hay nada programado todavía.</div>`}`;
   setTimeout(()=>showTodayPopup(todays),250);
-} 
-
+}
 function showTodayPopup(todays){
   if(sessionStorage.getItem('todayPopupShown')===today) return;
   sessionStorage.setItem('todayPopupShown',today);
@@ -63,7 +137,7 @@ function showTodayPopup(todays){
 }
 function startOfWeek(date){
   const d=new Date(date);
-  const day=(d.getDay()+6)%7; // Monday = 0
+  const day=(d.getDay()+6)%7;
   d.setHours(0,0,0,0);
   d.setDate(d.getDate()-day);
   return d;
@@ -142,14 +216,8 @@ function renderShared(app){
   </div>`;
 }
 
-
 function exportBackup(){
-  const backup={
-    app:"Mi Agenda",
-    version:2,
-    exportedAt:new Date().toISOString(),
-    items:items
-  };
+  const backup={app:"Mi Agenda",version:2,exportedAt:new Date().toISOString(),items:items};
   const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -163,7 +231,6 @@ function exportBackup(){
   const status=document.getElementById("backupStatus");
   if(status) status.textContent="✅ Copia guardada correctamente.";
 }
-
 function importBackup(event){
   const file=event.target.files[0];
   if(!file) return;
@@ -171,18 +238,11 @@ function importBackup(event){
   reader.onload=()=>{
     try{
       const data=JSON.parse(reader.result);
-      if(!data || data.app!=="Mi Agenda" || !Array.isArray(data.items)){
-        throw new Error("Archivo no válido");
-      }
+      if(!data || data.app!=="Mi Agenda" || !Array.isArray(data.items)) throw new Error("Archivo no válido");
       if(!confirm("Esto reemplazará las tareas y citas actuales por las de la copia. ¿Quieres continuar?")) return;
-      items=data.items;
-      save();
-      alert("✅ Copia restaurada correctamente.");
-    }catch(e){
-      alert("No se ha podido restaurar la copia. Comprueba que sea un archivo de Mi Agenda.");
-    }finally{
-      event.target.value="";
-    }
+      items=data.items; save(); alert("✅ Copia restaurada correctamente.");
+    }catch(e){alert("No se ha podido restaurar la copia. Comprueba que sea un archivo de Mi Agenda.");}
+    finally{event.target.value="";}
   };
   reader.readAsText(file);
 }
@@ -196,18 +256,24 @@ function updateFormType(){
   $('allDayWrap').style.display=event?'none':'flex';
   $('repeatWrap').style.display='block';
   $('timeWrap').style.display=event?'block':($('allDay').checked?'none':'block');
-  if(event) { $('allDay').checked=false; $('repeat').value='none'; }
+  if(event){ $('allDay').checked=false; $('repeat').value='none'; }
 }
 $('allDay').addEventListener('change',()=>{ $('timeWrap').style.display=$('allDay').checked?'none':'block'; if($('allDay').checked)$('time').value=''; });
 $('itemForm').addEventListener('submit',e=>{
  e.preventDefault();
  const isEvent=$('itemType').value==='event';
-const allDay=!isEvent && $('allDay').checked;
-const x={id:crypto.randomUUID(),type:$('itemType').value,title:$('title').value.trim(),date:$('date').value,time:allDay?'':$('time').value,endTime:isEvent?$('endTime').value:'',allDay,notes:$('notes').value.trim(),reminder:$('reminder').checked,done:false};
- items.push(x);save();formDialog.close();
+ const allDay=!isEvent && $('allDay').checked;
+ const x={id:crypto.randomUUID(),type:$('itemType').value,title:$('title').value.trim(),date:$('date').value,time:allDay?'':$('time').value,endTime:isEvent?$('endTime').value:'',allDay,notes:$('notes').value.trim(),reminder:$('reminder').checked,done:false};
+ items.push(x);save();formDialog.close();scheduleRemoteReminder(x);
 });
 function toggleItem(id){const x=items.find(i=>i.id===id);if(x){x.done=!x.done;save()}}
-function deleteItem(id){const x=items.find(i=>i.id===id);if(confirm(`¿Eliminar "${x?.title||'este elemento'}"? Esta acción quitará la tarea de tu agenda.`)){items=items.filter(x=>x.id!==id);save()}}
+function deleteItem(id){
+  const x=items.find(i=>i.id===id);
+  if(confirm(`¿Eliminar "${x?.title||'este elemento'}"? Esta acción quitará la tarea de tu agenda.`)){
+    deleteRemoteReminder(id);
+    items=items.filter(x=>x.id!==id);save()
+  }
+}
 
 function saveDailyTime(value){localStorage.setItem('dailyTime',value)}
 function dailyNotificationText(){
@@ -219,7 +285,7 @@ function dailyNotificationText(){
 function checkDailyNotification(){
   if(localStorage.getItem('dailyNotifications')!=='1'||!('Notification' in window)||Notification.permission!=='granted') return;
   const t=localStorage.getItem('dailyTime')||'08:00';
-  const now=new Date(), target=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${t}`;
+  const now=new Date();
   const key=now.toISOString().slice(0,10);
   if(now.getHours()===Number(t.split(':')[0])&&now.getMinutes()===Number(t.split(':')[1])&&localStorage.getItem('dailySent')!==key){
     new Notification('Mi Agenda', {body:dailyNotificationText()});
@@ -227,18 +293,19 @@ function checkDailyNotification(){
   }
 }
 setInterval(checkDailyNotification,30000);
-function requestNotifications(){
+
+async function requestNotifications(){
   if(!('Notification' in window)){alert('Este navegador no admite notificaciones.');return}
-  Notification.requestPermission().then(p=>{
-    if(p==='granted'){localStorage.setItem('dailyNotifications','1'); localStorage.setItem('dailyTime',localStorage.getItem('dailyTime')||'08:00'); alert('Avisos diarios activados 🔔')}
-    else alert('No se han activado las notificaciones.');
-  })
+  try{
+    await setupPush();
+    localStorage.setItem('dailyNotifications','1');
+    localStorage.setItem('dailyTime',localStorage.getItem('dailyTime')||'08:00');
+    alert('Notificaciones activadas 🔔');
+  }catch(e){
+    alert('No se han podido activar las notificaciones. Comprueba que Chrome permita las notificaciones para Mi Agenda.');
+  }
 }
-function enableDailyNotifications(){
-  addDialog.close();
-  requestNotifications();
-  localStorage.setItem('dailyNotifications','1');
-}
+function enableDailyNotifications(){addDialog.close();requestNotifications()}
 $('notifyBtn').onclick=enableDailyNotifications;
 $('addBtn').onclick=()=>addDialog.showModal();
 document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>{currentView=b.dataset.view;document.querySelectorAll('.bottom-nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()});
